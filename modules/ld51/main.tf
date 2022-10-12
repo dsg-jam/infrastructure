@@ -1,16 +1,17 @@
-terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 4.40.0"
-    }
-  }
-}
-
 resource "google_artifact_registry_repository" "default" {
   repository_id = var.name
   format        = "DOCKER"
   location      = var.location
+}
+
+locals {
+  server_container_image = format(
+    "%s-docker.pkg.dev/%s/%s/%s",
+    google_artifact_registry_repository.default.location,
+    google_artifact_registry_repository.default.project,
+    google_artifact_registry_repository.default.repository_id,
+    var.server_container_image_name,
+  )
 }
 
 resource "google_cloud_run_service" "default" {
@@ -31,7 +32,7 @@ resource "google_cloud_run_service" "default" {
 
     spec {
       containers {
-        image = "us-docker.pkg.dev/cloudrun/container/hello"
+        image = local.server_container_image
         ports {
           container_port = 80
         }
