@@ -25,6 +25,9 @@ jobs:
   terraform:
     runs-on: ubuntu-latest
     environment: live
+    env:
+      BACKEND_CONFIG: "env/dsg/config.gcs.tfbackend"
+      VAR_FILE: "env/dsg/config.public.tfvars"
 
     steps:
       - name: Checkout
@@ -39,11 +42,11 @@ jobs:
         uses: hashicorp/setup-terraform@v1
 
       - name: Terraform Init
-        run: terraform init -backend-config="${{ secrets.TF_BACKEND_CONFIG_FILE }}"
+        run: terraform init -backend-config="$BACKEND_CONFIG"
 
       - name: Terraform Plan
-        run: terraform plan -input=false
+        run: terraform plan -var-file="$VAR_FILE" -input=false
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/"main"' && github.event_name == 'push'
-        run: terraform apply -auto-approve -input=false
+        run: terraform apply -auto-approve -var-file="$VAR_FILE" -input=false
