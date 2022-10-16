@@ -14,6 +14,10 @@ locals {
   )
 }
 
+resource "google_service_account" "default" {
+  account_id = var.name
+}
+
 resource "google_cloud_run_service" "default" {
   name     = var.name
   location = var.location
@@ -31,6 +35,8 @@ resource "google_cloud_run_service" "default" {
     }
 
     spec {
+      service_account_name = google_service_account.default.email
+
       containers {
         image = local.server_container_image
         ports {
