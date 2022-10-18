@@ -19,7 +19,7 @@ provider "google" {
   region  = var.region
 }
 
-module "google-project-services" {
+module "google_project_services" {
   source  = "terraform-google-modules/project-factory/google//modules/project_services"
   version = "~> 14.0"
 
@@ -34,7 +34,7 @@ module "google-project-services" {
 }
 
 # Docker artifact registry
-resource "google_artifact_registry_repository" "docker-shared" {
+resource "google_artifact_registry_repository" "docker_shared" {
   repository_id = "shared"
   format        = "DOCKER"
   location      = var.region
@@ -42,26 +42,31 @@ resource "google_artifact_registry_repository" "docker-shared" {
 
 # ld51
 
-resource "google_service_account" "ld51-server" {
+resource "google_service_account" "ld51_server" {
   account_id   = "ld51-server-deployment"
   display_name = "LD51 Server Deployment"
   project      = var.project_id
 }
 
 locals {
-  ld51-server_service-account_member = format("serviceAccount:%s", google_service_account.ld51-server.email)
+  ld51_server_sa_member = format("serviceAccount:%s", google_service_account.ld51_server.email)
 }
 
-resource "google_project_iam_member" "ld51-server" {
-  member  = local.ld51-server_service-account_member
+resource "google_project_iam_member" "ld51_server" {
+  member  = local.ld51_server_sa_member
   role    = "roles/run.admin"
-  project = google_service_account.ld51-server.project
+  project = google_service_account.ld51_server.project
 }
 
+resource "google_service_account_iam_member" "ld51_server" {
+  service_account_id = google_service_account.ld51_server.name
+  member             = local.ld51_server_sa_member
+  role               = "roles/iam.serviceAccountTokenCreator"
+}
 
-resource "google_artifact_registry_repository_iam_member" "ld51-server" {
-  repository = google_artifact_registry_repository.docker-shared.repository_id
-  location   = google_artifact_registry_repository.docker-shared.location
-  member     = local.ld51-server_service-account_member
+resource "google_artifact_registry_repository_iam_member" "ld51_server" {
+  repository = google_artifact_registry_repository.docker_shared.repository_id
+  location   = google_artifact_registry_repository.docker_shared.location
+  member     = local.ld51_server_sa_member
   role       = "roles/artifactregistry.writer"
 }
