@@ -26,10 +26,12 @@ module "google_project_services" {
   project_id = var.project_id
 
   activate_apis = [
-    "artifactregistry.googleapis.com",  # Artifact Registry
-    "iam.googleapis.com",               # Identity and Access Management
-    "run.googleapis.com",               # Cloud Run
-    "storage-component.googleapis.com", # Cloud Storage
+    "artifactregistry.googleapis.com",     # Artifact Registry
+    "cloudresourcemanager.googleapis.com", # Cloud Resource Manager
+    "compute.googleapis.com",              # Compute Engine,
+    "iam.googleapis.com",                  # Identity and Access Management
+    "run.googleapis.com",                  # Cloud Run
+    "storage-component.googleapis.com",    # Cloud Storage
   ]
 }
 
@@ -64,8 +66,17 @@ resource "google_service_account_iam_member" "ld51_server" {
   role               = "roles/iam.serviceAccountTokenCreator"
 }
 
+data "google_compute_default_service_account" "default" {
+}
+
+resource "google_service_account_iam_member" "ld51_server_use_compute" {
+  service_account_id = data.google_compute_default_service_account.default.id
+  member             = local.ld51_server_sa_member
+  role               = "roles/iam.serviceAccountUser"
+}
+
 resource "google_artifact_registry_repository_iam_member" "ld51_server" {
-  repository = google_artifact_registry_repository.docker_shared.repository_id
+  repository = google_artifact_registry_repository.docker_shared.name
   location   = google_artifact_registry_repository.docker_shared.location
   member     = local.ld51_server_sa_member
   role       = "roles/artifactregistry.writer"
