@@ -50,6 +50,12 @@ resource "google_service_account" "ld51_server" {
   project      = var.project_id
 }
 
+resource "google_service_account" "ld51_server_run" {
+  account_id   = "ld51-server-run"
+  display_name = "LD51 Server Run"
+  project      = var.project_id
+}
+
 locals {
   ld51_server_sa_member = format("serviceAccount:%s", google_service_account.ld51_server.email)
 }
@@ -69,8 +75,13 @@ resource "google_service_account_iam_member" "ld51_server" {
 data "google_compute_default_service_account" "default" {
 }
 
-resource "google_service_account_iam_member" "ld51_server_use_compute" {
-  service_account_id = data.google_compute_default_service_account.default.id
+resource "google_service_account_iam_member" "ld51_server_use_sa" {
+  for_each = {
+    default = data.google_compute_default_service_account.default.id,
+    run     = google_service_account.ld51_server_run.id,
+  }
+
+  service_account_id = each.value
   member             = local.ld51_server_sa_member
   role               = "roles/iam.serviceAccountUser"
 }
