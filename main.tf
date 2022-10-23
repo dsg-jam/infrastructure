@@ -19,27 +19,48 @@ provider "google" {
   region  = var.region
 }
 
-module "google_project_services" {
-  source  = "terraform-google-modules/project-factory/google//modules/project_services"
-  version = "~> 14.0"
+resource "google_project_service" "this" {
+  for_each = toset([
+    "artifactregistry.googleapis.com",  # Artifact Registry
+    "compute.googleapis.com",           # Compute Engine,
+    "run.googleapis.com",               # Cloud Run
+    "storage-component.googleapis.com", # Cloud Storage
+  ])
 
-  project_id = var.project_id
-
-  activate_apis = [
-    "artifactregistry.googleapis.com",     # Artifact Registry
-    "cloudresourcemanager.googleapis.com", # Cloud Resource Manager
-    "compute.googleapis.com",              # Compute Engine,
-    "iam.googleapis.com",                  # Identity and Access Management
-    "run.googleapis.com",                  # Cloud Run
-    "storage-component.googleapis.com",    # Cloud Storage
-  ]
+  service                    = each.value
+  disable_dependent_services = true
 }
+
 
 # Docker artifact registry
 resource "google_artifact_registry_repository" "docker_shared" {
   repository_id = "shared"
   format        = "DOCKER"
   location      = var.region
+}
+
+module "gcr_cleaner" {
+  source  = "mirakl/gcr-cleaner/google"
+  version = "~> 2.0"
+
+  app_engine_application_location     = var.region
+  cloud_run_service_location          = var.region
+  cloud_run_service_maximum_instances = 5
+  cloud_run_service_name              = "gcr-cleaner"
+  gar_repositories = [
+    {
+      region        = google_artifact_registry_repository.docker_shared.location,
+      name          = google_artifact_registry_repository.docker_shared.name,
+      registry_name = google_artifact_registry_repository.docker_shared.repository_id,
+      parameters = {
+        grace          = "2h",
+        keep           = 3,
+        tag_filter_all = ".*"
+        recursive      = true,
+        dry_run        = false,
+      }
+    }
+  ]
 }
 
 # ld51
@@ -72,12 +93,12 @@ resource "google_service_account_iam_member" "ld51_server" {
   role               = "roles/iam.serviceAccountTokenCreator"
 }
 
-data "google_compute_default_service_account" "default" {
+data "google_compute_default_service_account" "this" {
 }
 
 resource "google_service_account_iam_member" "ld51_server_use_sa" {
   for_each = {
-    default = data.google_compute_default_service_account.default.id,
+    default = data.google_compute_default_service_account.this.id,
     run     = google_service_account.ld51_server_run.id,
   }
 
